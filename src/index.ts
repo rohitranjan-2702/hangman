@@ -5,6 +5,7 @@ import cors from "cors";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import { GameState } from "./game";
+import { createClient } from "redis";
 
 const PORT = process.env.PORT || 8000;
 const app = express();
@@ -20,19 +21,31 @@ const io = new Server(httpServer, {
   },
 });
 
+const redisClient = createClient();
+redisClient.on("error", (err) => console.log("Redis Client Error", err));
+
+// Store all games in memory
+let games: Record<string, GameState> = {};
+
 io.on("connection", (socket: Socket) => {
   console.log("User Connected", socket.id);
 
-  socket.on("message", (message) => {
+  socket.on("message", async (message) => {
     const data = JSON.parse(message);
     console.log(data);
 
     switch (data.type) {
       case "create":
         const gameId = createGame(data.word, data.password);
-        socket.to(gameId).emit(JSON.stringify({ type: "created", gameId }));
+        io.to(gameId as string).emit(
+          "message",
+          JSON.stringify({ type: "created", gameId })
+        );
+        socket.send(JSON.stringify({ type: "created", gameId }));
         // join the game
-        joinGame(gameId, data.password, socket, data.playerName);
+        joinGame(gameId as string, data.password, socket, data.playerName);
+        // Save the game state to redis
+        await redisClient.lPush("games", JSON.stringify(games));
         break;
       case "join":
         joinGame(data.gameId, data.password, socket, data.playerName);
@@ -48,11 +61,12 @@ io.on("connection", (socket: Socket) => {
   });
 });
 
-// Store all games in memory
-let games: Record<string, GameState> = {};
-
 function createGame(word: string, password: string) {
   const gameId = generateGameId();
+
+  if (!password) {
+    return console.log("Password is required");
+  }
 
   games[gameId] = new GameState(word, password);
   console.log("Game Created", gameId, word);
@@ -65,7 +79,7 @@ function joinGame(
   socket: any,
   playerName: string
 ) {
-  if (games[gameId]) {
+  if (games[gameId] && password) {
     games[gameId].addPlayer(gameId, password, socket, playerName);
     socket.gameId = gameId;
     broadcastGameState(gameId);
@@ -132,6 +146,40 @@ app.get("/", (req, res) => {
   res.send("Server Running Fine 🚀");
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`Server is running on port http://localhost:${PORT}`);
+app.get("/games", async (req, res) => {
+  const savedGame = await redisClient.lRange("games", 0, 9999);
+  return res.json(savedGame.map((game) => JSON.parse(game)));
 });
+
+app.get("/game/:gameId", async (req, res) => {
+  const gameId = req.params.gameId;
+  const savedGame = await redisClient.lRange("games", 0, 9999);
+  const games = savedGame.map((game) => JSON.parse(game));
+
+  for (const game of games) {
+    if (game.hasOwnProperty(gameId)) {
+      return res.json(game[gameId]);
+    }
+  }
+  return res.json({ message: "Game not found" });
+});
+
+app.get("/delete", async (req, res) => {
+  await redisClient.del("games");
+  return res.json({ message: "Games deleted" });
+});
+
+async function startServer() {
+  try {
+    await redisClient.connect();
+    console.log("Connected to Redis");
+
+    httpServer.listen(PORT, () => {
+      console.log(`Server is running on port http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to connect to Redis", error);
+  }
+}
+
+startServer();

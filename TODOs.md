@@ -1,4 +1,4 @@
-- [] implement auth
-- [] game room with multiplayers
+- [] store curent games in redis cache
+- [x] game room with multiplayers
 - [x] turn based cycle
 - [x] room passwords

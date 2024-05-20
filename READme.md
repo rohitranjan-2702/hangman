@@ -4,9 +4,14 @@
 
 - Realtime score updates
 - Create rooms with passwords
-- Multiplayer
-- Turn Based
-- auth with email OTP
+- Turn Based Multiplayer game
+- Games saved in redis cache storage
+
+### Setup
+
+- Clone the repo by running `git clone https://github.com/rohitranjan-2702/hangman.git `
+- Run `docker run --name my-redis -d -p 6379:6379 redis` to setup redis locally.
+- Run development server `npm run dev` to start the server.
 
 ### Usage
 
@@ -79,4 +84,22 @@ Returns the updated gameState with individual scores of players.
   "currentPlayer": { "id": "9vbbjaeCuk1orYC2AAAD", "name": "Player 2" },
   "currentPlayerIndex": 1
 }
+```
+
+- **Get all games**
+
+```bash
+curl http://localhost:8000/games
+```
+
+- **Get a game by id**
+
+```bash
+curl http://localhost:8000/game/hteqi6vm5
+```
+
+- **Delete all games**
+
+```bash
+curl http://localhost:8000/delete
 ```
