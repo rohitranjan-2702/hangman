@@ -6,9 +6,11 @@ export class GameState {
   public players: Array<any>;
   public scores: Record<string, number>;
   public currentPlayerIndex: number;
+  protected password: string;
 
-  constructor(word: string) {
+  constructor(word: string, password: string) {
     this.word = word; // The word to guess
+    this.password = password;
     this.guesses = new Set(); // Letters guessed so far
     this.turnsLeft = 6; // Number of wrong guesses allowed
     this.correctGuesses = new Set(); // Correctly guessed letters
@@ -17,9 +19,19 @@ export class GameState {
     this.currentPlayerIndex = 0; // Index of the current player
   }
 
-  addPlayer(player: any) {
-    this.players.push(player);
-    this.scores[player.id] = 0;
+  addPlayer(gameId: string, password: string, socket: any, playerName: string) {
+    if (password !== this.password) {
+      socket.send(
+        JSON.stringify({ type: "error", message: "Invalid password" })
+      );
+      return;
+    } else {
+      this.players.push({
+        id: socket.id,
+        name: playerName,
+      });
+      this.scores[socket.id] = 0;
+    }
   }
 
   nextPlayer() {

@@ -16,6 +16,7 @@
 {
   "type": "create",
   "word": "Rohit", // Your custom word
+  "password": "123123",
   "playerName": "Player 1"
 }
 ```
@@ -28,6 +29,7 @@ Creates a new room, join the current player and returns a unique gameId for othe
 {
   "type": "join",
   "gameId": "c30aul5pj", // game id that you got after creating a game
+  "password": "123123",
   "playerName": "Player 1"
 }
 ```

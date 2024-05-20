@@ -29,13 +29,13 @@ io.on("connection", (socket: Socket) => {
 
     switch (data.type) {
       case "create":
-        const gameId = createGame(data.word);
+        const gameId = createGame(data.word, data.password);
         socket.to(gameId).emit(JSON.stringify({ type: "created", gameId }));
         // join the game
-        joinGame(gameId, socket, data.playerName);
+        joinGame(gameId, data.password, socket, data.playerName);
         break;
       case "join":
-        joinGame(data.gameId, socket, data.playerName);
+        joinGame(data.gameId, data.password, socket, data.playerName);
         break;
       case "guess":
         handleGuess(data.gameId, data.letter, socket);
@@ -51,21 +51,22 @@ io.on("connection", (socket: Socket) => {
 // Store all games in memory
 let games: Record<string, GameState> = {};
 
-function createGame(word: string) {
+function createGame(word: string, password: string) {
   const gameId = generateGameId();
 
-  games[gameId] = new GameState(word);
+  games[gameId] = new GameState(word, password);
   console.log("Game Created", gameId, word);
   return gameId;
 }
 
-function joinGame(gameId: string, socket: any, playerName: string) {
+function joinGame(
+  gameId: string,
+  password: string,
+  socket: any,
+  playerName: string
+) {
   if (games[gameId]) {
-    games[gameId].players.push({
-      id: socket.id,
-      name: playerName,
-    });
-    games[gameId].scores[socket.id] = 0;
+    games[gameId].addPlayer(gameId, password, socket, playerName);
     socket.gameId = gameId;
     broadcastGameState(gameId);
   } else {

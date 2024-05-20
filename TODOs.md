@@ -1,4 +1,4 @@
 - [] implement auth
 - [] game room with multiplayers
 - [x] turn based cycle
-- [] room passwords
+- [x] room passwords
