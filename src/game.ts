@@ -44,7 +44,7 @@ export class GameState {
     return this.players[this.currentPlayerIndex];
   }
 
-  makeGuess(letter: string, playerId: string) {
+  makeGuess(letter: string, playerId: string, currentPlayerIndex: number) {
     if (this.guesses.has(letter)) {
       console.log("Letter already guessed", letter);
       return false; // Letter already guessed

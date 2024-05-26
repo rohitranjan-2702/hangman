@@ -20,7 +20,7 @@
 ```json
 {
   "type": "create",
-  "word": "Rohit", // Your custom word
+  "word": "Rohit",
   "password": "123123",
   "playerName": "Player 1"
 }
@@ -33,7 +33,7 @@ Creates a new room, join the current player and returns a unique gameId for othe
 ```json
 {
   "type": "join",
-  "gameId": "c30aul5pj", // game id that you got after creating a game
+  "gameId": "c30aul5pj",
   "password": "123123",
   "playerName": "Player 1"
 }

@@ -84,13 +84,28 @@ function joinGame(
     socket.gameId = gameId;
     broadcastGameState(gameId);
   } else {
-    socket.send(JSON.stringify({ type: "error", message: "Game not found" }));
+    socket.send(
+      JSON.stringify({
+        type: "error",
+        message: "Game not found, please check the password or gameId",
+      })
+    );
   }
 }
 
 function handleGuess(gameId: string, letter: string, socket: any) {
   if (games[gameId] && socket.gameId === gameId) {
-    games[gameId].makeGuess(letter, socket.id);
+    const currentPlayer = games[gameId].getCurrentPlayer();
+    if (currentPlayer.id !== socket.id) {
+      console.log("Not your turn", socket.id);
+      socket.send(JSON.stringify({ type: "error", message: "Not your turn" }));
+      return false; // Not your turn
+    }
+    games[gameId].makeGuess(
+      letter,
+      socket.id,
+      games[gameId].currentPlayerIndex
+    );
     io.to(gameId).emit("letterGuessed", {
       remainingTurns: games[gameId].turnsLeft,
     });
