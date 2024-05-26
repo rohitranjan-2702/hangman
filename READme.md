@@ -12,6 +12,7 @@
 - Clone the repo by running `git clone https://github.com/rohitranjan-2702/hangman.git `
 - Run `docker run --name my-redis -d -p 6379:6379 redis` to setup redis locally.
 - Run development server `npm run dev` to start the server.
+- Connect with postman, and `send the event as text` but in JSON form, as I am parsing it after that.
 
 ### Usage
 
