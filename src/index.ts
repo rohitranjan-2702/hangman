@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
@@ -21,7 +21,7 @@ const io = new Server(httpServer, {
   },
 });
 
-const redisClient = createClient();
+export const redisClient = createClient();
 redisClient.on("error", (err) => console.log("Redis Client Error", err));
 
 // Store all games in memory
@@ -96,11 +96,13 @@ function joinGame(
 function handleGuess(gameId: string, letter: string, socket: any) {
   if (games[gameId] && socket.gameId === gameId) {
     const currentPlayer = games[gameId].getCurrentPlayer();
+
     if (currentPlayer.id !== socket.id) {
       console.log("Not your turn", socket.id);
       socket.send(JSON.stringify({ type: "error", message: "Not your turn" }));
       return false; // Not your turn
     }
+
     games[gameId].makeGuess(
       letter,
       socket.id,
@@ -161,9 +163,39 @@ app.get("/", (req, res) => {
   res.send("Server Running Fine 🚀");
 });
 
+const cacheMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const key = req.originalUrl.split("?")[0]; // Generate cache key from URL (excluding query string)
+
+  // Check if data exists in cache
+  const cachedData = await redisClient.get(key);
+  if (cachedData) {
+    console.log("Data retrieved from cache");
+    return res.send(JSON.parse(cachedData));
+  }
+
+  // If not cached, proceed with the route logic
+  next();
+
+  // After route execution, cache the response (optional)
+  if (res.statusCode === 200) {
+    // Only cache successful responses
+    const dataToCache = JSON.stringify(res.locals.data || res.locals.result); // Customize based on your response structure
+    await redisClient.set(key, dataToCache, { EX: 60 }); // Expire after 60 seconds
+  }
+};
+
 app.get("/games", async (req, res) => {
   const savedGame = await redisClient.lRange("games", 0, 9999);
   return res.json(savedGame.map((game) => JSON.parse(game)));
+});
+
+app.get("/cache", cacheMiddleware, async (req, res) => {
+  res.locals.data = { message: "Data from the server" };
+  return res.json({ message: "Data from the server" });
 });
 
 app.get("/game/:gameId", async (req, res) => {
