@@ -21,8 +21,8 @@ const io = new Server(httpServer, {
   },
 });
 
-export const redisClient = createClient();
-redisClient.on("error", (err) => console.log("Redis Client Error", err));
+export const redisClient = new Map<string, string | null>();
+// redisClient.on("error", (err) => console.log("Redis Client Error", err));
 
 // Store all games in memory
 let games: Record<string, GameState> = {};
@@ -45,7 +45,7 @@ io.on("connection", (socket: Socket) => {
         // join the game
         joinGame(gameId as string, data.password, socket, data.playerName);
         // Save the game state to redis
-        await redisClient.lPush("games", JSON.stringify(games));
+        redisClient.set("games", JSON.stringify(games));
         break;
       case "join":
         joinGame(data.gameId, data.password, socket, data.playerName);
@@ -171,7 +171,7 @@ const cacheMiddleware = async (
   const key = req.originalUrl.split("?")[0]; // Generate cache key from URL (excluding query string)
 
   // Check if data exists in cache
-  const cachedData = await redisClient.get(key);
+  const cachedData = redisClient.get(key);
   if (cachedData) {
     console.log("Data retrieved from cache");
     return res.send(JSON.parse(cachedData));
@@ -184,13 +184,13 @@ const cacheMiddleware = async (
   if (res.statusCode === 200) {
     // Only cache successful responses
     const dataToCache = JSON.stringify(res.locals.data || res.locals.result); // Customize based on your response structure
-    await redisClient.set(key, dataToCache, { EX: 60 }); // Expire after 60 seconds
+    redisClient.set(key, dataToCache); // Expire after 60 seconds
   }
 };
 
 app.get("/games", async (req, res) => {
-  const savedGame = await redisClient.lRange("games", 0, 9999);
-  return res.json(savedGame.map((game) => JSON.parse(game)));
+  const savedGame = redisClient.get("games");
+  return res.json(JSON.parse(savedGame as string));
 });
 
 app.get("/cache", cacheMiddleware, async (req, res) => {
@@ -200,8 +200,8 @@ app.get("/cache", cacheMiddleware, async (req, res) => {
 
 app.get("/game/:gameId", async (req, res) => {
   const gameId = req.params.gameId;
-  const savedGame = await redisClient.lRange("games", 0, 9999);
-  const games = savedGame.map((game) => JSON.parse(game));
+  const savedGame = redisClient.get("games");
+  const games = JSON.parse(savedGame as string);
 
   for (const game of games) {
     if (game.hasOwnProperty(gameId)) {
@@ -212,13 +212,13 @@ app.get("/game/:gameId", async (req, res) => {
 });
 
 app.get("/delete", async (req, res) => {
-  await redisClient.del("games");
+  redisClient.set("games", null);
   return res.json({ message: "Games deleted" });
 });
 
 async function startServer() {
   try {
-    await redisClient.connect();
+    // await redisClient.connect();
     console.log("Connected to Redis");
 
     httpServer.listen(PORT, () => {
